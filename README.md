@@ -1,186 +1,160 @@
-# 🤖 YouTube Agent IA
+# YouTube Agent IA
 
-**Agente autónomo de inteligencia artificial para crear y subir videos educativos en español a YouTube.**
+Agente autónomo de IA para crear y subir videos educativos en español a YouTube. **100% gratuito** - no requiere APIs de pago.
 
-Este agente utiliza **Grok (xAI)** para generar contenido, **Edge TTS** para la narración en español, y la **API de YouTube** para subir los videos automáticamente a tu canal.
+## Stack Tecnológico (Todo Gratuito)
 
-## 🚀 ¿Qué hace?
+| Componente | Tecnología | Costo |
+|------------|-----------|-------|
+| Guiones e investigación | **Groq** (Llama 3.3 70B) | Gratis |
+| Narración de voz | **Edge TTS** (voces naturales en español) | Gratis |
+| Imágenes de secciones | **PIL** (gráficos generados) | Gratis |
+| Ensamblaje de video | **MoviePy** + FFmpeg | Gratis |
+| Subida a YouTube | **YouTube Data API v3** | Gratis |
 
-El agente ejecuta un pipeline completo de forma autónoma:
-
-1. **🔍 Investigación** → Identifica temas trending y de alto interés educativo
-2. **📝 Guion** → Genera un guion completo en español con Grok
-3. **🎙️ Narración** → Crea el audio con voces naturales en español (Edge TTS)
-4. **🎨 Imágenes** → Genera imágenes con IA (Grok Aurora)
-5. **🎬 Video** → Ensambla el video final con intro, secciones y outro
-6. **📤 Subida** → Sube automáticamente a YouTube con título, descripción y miniatura
-
-## 📋 Requisitos
+## Requisitos
 
 - Python 3.11+
-- FFmpeg
-- Clave de API de xAI (Grok): [console.x.ai](https://console.x.ai/)
-- Credenciales OAuth2 de YouTube: [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+- [uv](https://docs.astral.sh/uv/) (gestor de paquetes)
+- FFmpeg (`sudo apt install ffmpeg` en Ubuntu)
 
-## 🛠️ Instalación
+## Instalación
 
 ```bash
-# Clonar el repositorio
 git clone https://github.com/LuixDev/youtube-agent-ia.git
 cd youtube-agent-ia
-
-# Instalar dependencias con uv
 uv sync
-
-# O con pip
-pip install -e .
-
-# Instalar FFmpeg (si no lo tienes)
-# Ubuntu/Debian:
-sudo apt install ffmpeg
-# macOS:
-brew install ffmpeg
 ```
 
-## ⚙️ Configuración
+## Configuración
 
-1. Copia el archivo de ejemplo:
+1. Copia el archivo de configuración:
+
 ```bash
 cp .env.example .env
 ```
 
-2. Edita `.env` con tus credenciales:
+2. Configura tus credenciales en `.env`:
 
-```env
-# Clave de xAI (Grok)
-XAI_API_KEY=xai-tu-clave-aqui
+### Groq API Key (Gratuito)
 
-# YouTube OAuth2
-YOUTUBE_CLIENT_ID=tu-client-id
-YOUTUBE_CLIENT_SECRET=tu-client-secret
-```
+1. Ve a https://console.groq.com/keys
+2. Crea una cuenta (puedes usar Google)
+3. Click "Create API Key"
+4. Copia la clave en `GROQ_API_KEY`
 
-### Obtener credenciales de YouTube
+### YouTube API (Para subir videos)
 
 1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
-2. Crea un proyecto nuevo o selecciona uno existente
+2. Crea un proyecto nuevo
 3. Habilita la **YouTube Data API v3**
-4. Ve a **Credenciales** → **Crear credenciales** → **ID de cliente OAuth**
-5. Selecciona **Aplicación de escritorio**
-6. Copia el `Client ID` y `Client Secret` al archivo `.env`
+4. Ve a **Credenciales** > **Crear credenciales** > **ID de cliente OAuth**
+5. Tipo de aplicación: **Aplicación de escritorio**
+6. Copia `Client ID` y `Client Secret` en el `.env`
 
-### Obtener clave de xAI (Grok)
+## Uso
 
-1. Ve a [console.x.ai](https://console.x.ai/)
-2. Crea una cuenta o inicia sesión
-3. Genera una clave de API
-4. Copia la clave al archivo `.env`
-
-## 🎮 Uso
-
-### Crear un video automáticamente
+### Crear un video completo y subirlo
 
 ```bash
-# Crear un video completo y subirlo a YouTube
 youtube-agent create
+```
 
-# Crear video sobre un nicho específico
+### Crear video sobre un tema específico
+
+```bash
 youtube-agent create --niche "programación python"
+```
 
-# Crear video sin subir (solo guardar localmente)
+### Crear video sin subir a YouTube
+
+```bash
 youtube-agent create --no-upload
 ```
 
-### Investigar temas
+### Crear múltiples videos en lote
 
 ```bash
-# Ver 5 temas trending
-youtube-agent research
+youtube-agent batch --count 3
+youtube-agent batch --count 5 --niche "inteligencia artificial"
+```
 
-# Investigar 10 temas en un nicho
+### Solo investigar temas trending
+
+```bash
+youtube-agent research
 youtube-agent research --count 10 --niche "ciencia"
 ```
 
-### Generar solo el guion
+### Generar solo un guion
 
 ```bash
-youtube-agent script --title "Cómo funciona la IA" --description "Explicación sencilla de inteligencia artificial"
+youtube-agent script --title "Cómo aprender Python" --description "Tutorial para principiantes"
 ```
 
-### Crear videos en lote
-
-```bash
-# Crear 3 videos automáticamente
-youtube-agent batch --count 3
-
-# Crear 5 videos sobre tecnología sin subir
-youtube-agent batch --count 5 --niche "tecnología" --no-upload
-```
-
-## 📁 Estructura del Proyecto
+## Pipeline Completo
 
 ```
-youtube-agent-ia/
-├── pyproject.toml           # Dependencias y configuración
-├── .env.example             # Ejemplo de variables de entorno
-├── README.md                # Este archivo
-├── src/
-│   └── youtube_agent/
-│       ├── __init__.py
-│       ├── main.py          # CLI y orquestador principal
-│       ├── config.py        # Configuración con Pydantic
-│       ├── research.py      # Investigación de temas con Grok
-│       ├── scriptwriter.py  # Generación de guiones con Grok
-│       ├── voiceover.py     # Narración con Edge TTS
-│       ├── visuals.py       # Generación de imágenes con Grok
-│       ├── video.py         # Ensamblaje de video con MoviePy
-│       └── uploader.py      # Subida a YouTube
-└── output/                  # Videos generados
+1. 🔍 Investigación  → Groq genera ideas de temas trending
+2. 📝 Guion          → Groq escribe el guion completo en español
+3. 🎙  Narración     → Edge TTS genera el audio con voz natural
+4. 🎨 Imágenes       → PIL crea gráficos profesionales por sección
+5. 🎬 Video          → MoviePy ensambla todo (intro + secciones + outro)
+6. 📤 Upload         → YouTube API sube el video con título, descripción y miniatura
 ```
 
-## 🎙️ Voces Disponibles (Español)
+## Voces Disponibles
 
-| Voz | Descripción |
-|-----|-------------|
-| `es-MX-JorgeNeural` | Masculina - México (default) |
-| `es-MX-DaliaNeural` | Femenina - México |
-| `es-ES-AlvaroNeural` | Masculina - España |
-| `es-ES-ElviraNeural` | Femenina - España |
-| `es-AR-TomasNeural` | Masculina - Argentina |
-| `es-CO-GonzaloNeural` | Masculina - Colombia |
+| Voz | Código | Región |
+|-----|--------|--------|
+| Jorge (por defecto) | `es-MX-JorgeNeural` | México |
+| Dalia | `es-MX-DaliaNeural` | México |
+| Elvira | `es-ES-ElviraNeural` | España |
+| Álvaro | `es-ES-AlvaroNeural` | España |
+| Tomás | `es-AR-TomasNeural` | Argentina |
+| Gonzalo | `es-CO-GonzaloNeural` | Colombia |
 
 Cambia la voz en `.env`:
-```env
+
+```
 TTS_VOICE=es-MX-DaliaNeural
 ```
 
-## 📊 Personalización
+## Modelos de Groq Disponibles (Gratis)
 
-Puedes personalizar en `.env`:
+| Modelo | Descripción |
+|--------|-------------|
+| `llama-3.3-70b-versatile` | Recomendado, mejor calidad |
+| `mixtral-8x7b-32768` | Rápido, buen contexto |
+| `llama-3.1-8b-instant` | Ultra rápido, menor calidad |
 
-| Variable | Descripción | Default |
-|----------|-------------|---------|
-| `XAI_MODEL` | Modelo de Grok | `grok-3` |
-| `TARGET_DURATION` | Duración del video (segundos) | `480` (8 min) |
-| `VIDEO_WIDTH` | Ancho del video | `1920` |
-| `VIDEO_HEIGHT` | Alto del video | `1080` |
-| `YOUTUBE_PRIVACY` | Privacidad del video | `public` |
-| `YOUTUBE_CATEGORY_ID` | Categoría de YouTube | `27` (Educación) |
+## Estructura del Proyecto
 
-## 🔧 Solución de Problemas
-
-### Error de autenticación de YouTube
-La primera vez que ejecutes el agente, se abrirá el navegador para autenticar con Google. Después, el token se guarda localmente en `token.json`.
-
-### Error de FFmpeg
-Asegúrate de tener FFmpeg instalado:
-```bash
-ffmpeg -version
+```
+src/youtube_agent/
+├── config.py        # Configuración con Pydantic
+├── research.py      # Investigación de temas
+├── scriptwriter.py  # Generación de guiones
+├── voiceover.py     # Narración con Edge TTS
+├── visuals.py       # Generación de imágenes con PIL
+├── video.py         # Ensamblaje de video
+├── uploader.py      # Subida a YouTube
+└── main.py          # CLI principal
 ```
 
-### Error de xAI
-Verifica que tu clave de API sea válida en [console.x.ai](https://console.x.ai/).
+## Troubleshooting
 
-## 📄 Licencia
+### "FFmpeg not found"
+```bash
+sudo apt install ffmpeg
+```
 
-MIT License
+### Error de autenticación YouTube
+La primera vez que subas un video, se abrirá tu navegador para autorizar la app. El token se guarda en `token.json` para futuras ejecuciones.
+
+### Rate limit de Groq
+El tier gratuito permite 30 peticiones por minuto. Si ves errores 429, espera un momento y reintenta.
+
+## Licencia
+
+MIT

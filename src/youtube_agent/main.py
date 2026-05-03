@@ -90,8 +90,8 @@ def create_video_pipeline(
     image_files = generate_section_images(settings, sections, work_dir)
 
     # Generar miniatura
-    thumbnail_prompt = script.get("thumbnail_prompt", f"Educational thumbnail about {title}")
-    thumbnail_path = generate_thumbnail(settings, thumbnail_prompt, work_dir)
+    thumbnail_text = script.get("thumbnail_text", title)
+    thumbnail_path = generate_thumbnail(settings, thumbnail_text, work_dir)
     console.print(f"[green]Imágenes generadas:[/green] {len(image_files)} + miniatura")
 
     # Paso 5: Ensamblar video

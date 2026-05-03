@@ -13,11 +13,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # xAI (Grok)
-    xai_api_key: str = Field(default="")
-    xai_model: str = Field(default="grok-3")
-    xai_image_model: str = Field(default="grok-2-image")
-    xai_base_url: str = Field(default="https://api.x.ai/v1")
+    # Groq (gratuito)
+    groq_api_key: str = Field(default="")
+    groq_model: str = Field(default="llama-3.3-70b-versatile")
+    groq_base_url: str = Field(default="https://api.groq.com/openai/v1")
 
     # YouTube OAuth2
     youtube_client_id: str = Field(default="")

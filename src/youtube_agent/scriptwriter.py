@@ -1,10 +1,10 @@
-"""Módulo de generación de guiones con Grok."""
+"""Módulo de generación de guiones con Groq (Llama 3)."""
 
 import json
 import logging
 
 from .config import Settings
-from .research import get_xai_client
+from .research import get_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -27,17 +27,17 @@ El guion debe:
 Devuelve el guion en formato JSON:
 {{
     "title": "Título del video",
-    "description": "Descripción para YouTube (máx 5000 caracteres, con hashtags y keywords)",
+    "description": "Descripción para YouTube (máx 5000 caracteres, con hashtags)",
     "tags": ["tag1", "tag2", ...],
     "sections": [
         {{
             "section_title": "Nombre de la sección",
             "narration": "Texto de narración para esta sección...",
-            "visual_prompt": "Descripción de imagen para esta sección (en inglés)",
+            "visual_prompt": "Descripción de imagen para esta sección",
             "duration_estimate_seconds": 30
         }}
     ],
-    "thumbnail_prompt": "Descripción detallada para generar una miniatura atractiva (en inglés)"
+    "thumbnail_text": "Texto corto y llamativo para la miniatura (máx 5 palabras)"
 }}
 
 Responde SOLO con el JSON.
@@ -49,15 +49,15 @@ def generate_script(
     title: str,
     description: str,
 ) -> dict:
-    """Genera un guion completo para un video educativo usando Grok."""
-    client = get_xai_client(settings)
+    """Genera un guion completo para un video educativo usando Groq."""
+    client = get_llm_client(settings)
 
     duration_minutes = settings.target_duration // 60
 
     logger.info("Generando guion para: %s", title)
 
     response = client.chat.completions.create(
-        model=settings.xai_model,
+        model=settings.groq_model,
         messages=[
             {
                 "role": "system",
@@ -93,7 +93,7 @@ def generate_script(
         "Guion generado: %d secciones, ~%d palabras, ~%d min estimado",
         len(sections),
         total_words,
-        total_words // 150,  # ~150 palabras/min en español
+        total_words // 150,
     )
 
     return script

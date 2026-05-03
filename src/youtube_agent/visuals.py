@@ -1,45 +1,166 @@
-"""Módulo de generación de imágenes con Grok (Aurora)."""
+"""Módulo de generación de imágenes con PIL (100% gratuito, sin API externa)."""
 
 import logging
+import random
 from pathlib import Path
 
-import httpx
-from openai import OpenAI
+from PIL import Image, ImageDraw, ImageFont
 
 from .config import Settings
-from .research import get_xai_client
 
 logger = logging.getLogger(__name__)
 
+FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+FONT_PATH_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-def generate_image(
-    client: OpenAI,
-    model: str,
-    prompt: str,
+# Paletas de colores profesionales para videos educativos
+COLOR_PALETTES = [
+    {"bg_start": (25, 25, 112), "bg_end": (0, 0, 50), "accent": (0, 200, 255)},
+    {"bg_start": (20, 60, 20), "bg_end": (0, 30, 0), "accent": (100, 255, 100)},
+    {"bg_start": (80, 20, 80), "bg_end": (40, 0, 40), "accent": (255, 100, 255)},
+    {"bg_start": (100, 40, 0), "bg_end": (50, 20, 0), "accent": (255, 180, 50)},
+    {"bg_start": (20, 60, 80), "bg_end": (10, 30, 50), "accent": (0, 220, 200)},
+    {"bg_start": (60, 20, 20), "bg_end": (30, 10, 10), "accent": (255, 80, 80)},
+]
+
+
+def _draw_gradient(
+    draw: ImageDraw.ImageDraw,
+    width: int,
+    height: int,
+    color_start: tuple,
+    color_end: tuple,
+) -> None:
+    """Dibuja un gradiente vertical."""
+    for y in range(height):
+        ratio = y / height
+        r = int(color_start[0] + (color_end[0] - color_start[0]) * ratio)
+        g = int(color_start[1] + (color_end[1] - color_start[1]) * ratio)
+        b = int(color_start[2] + (color_end[2] - color_start[2]) * ratio)
+        draw.line([(0, y), (width, y)], fill=(r, g, b))
+
+
+def _draw_decorative_elements(
+    draw: ImageDraw.ImageDraw,
+    width: int,
+    height: int,
+    accent: tuple,
+) -> None:
+    """Dibuja elementos decorativos geométricos."""
+    # Círculos decorativos semi-transparentes
+    for _ in range(5):
+        cx = random.randint(0, width)
+        cy = random.randint(0, height)
+        radius = random.randint(50, 200)
+        draw.ellipse(
+            [cx - radius, cy - radius, cx + radius, cy + radius],
+            outline=(*accent, 60),
+            width=2,
+        )
+
+    # Líneas diagonales decorativas
+    for i in range(3):
+        x_offset = random.randint(-200, width)
+        draw.line(
+            [(x_offset, height), (x_offset + 400, 0)],
+            fill=(*accent, 25),
+            width=1,
+        )
+
+
+def _wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[str]:
+    """Divide el texto en líneas que quepan en el ancho dado."""
+    words = text.split()
+    lines: list[str] = []
+    current_line: list[str] = []
+
+    for word in words:
+        test_line = " ".join(current_line + [word])
+        bbox = font.getbbox(test_line)
+        if bbox[2] - bbox[0] <= max_width:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(" ".join(current_line))
+            current_line = [word]
+
+    if current_line:
+        lines.append(" ".join(current_line))
+
+    return lines
+
+
+def generate_section_image(
+    title: str,
+    section_number: int,
+    total_sections: int,
+    width: int,
+    height: int,
     output_path: Path,
-    size: str = "1792x1024",
 ) -> Path:
-    """Genera una imagen usando Grok y la guarda en disco."""
-    logger.info("Generando imagen: %s...", prompt[:80])
+    """Genera una imagen profesional para una sección del video."""
+    palette = COLOR_PALETTES[section_number % len(COLOR_PALETTES)]
 
-    response = client.images.generate(
-        model=model,
-        prompt=prompt,
-        n=1,
-        size=size,
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 255))
+    draw = ImageDraw.Draw(img)
+
+    # Fondo con gradiente
+    _draw_gradient(draw, width, height, palette["bg_start"], palette["bg_end"])
+
+    # Elementos decorativos
+    _draw_decorative_elements(draw, width, height, palette["accent"])
+
+    # Barra superior con acento
+    draw.rectangle([0, 0, width, 6], fill=palette["accent"])
+
+    # Número de sección
+    try:
+        num_font = ImageFont.truetype(FONT_PATH, 120)
+    except OSError:
+        num_font = ImageFont.load_default()
+
+    section_num = str(section_number + 1)
+    num_bbox = num_font.getbbox(section_num)
+    num_w = num_bbox[2] - num_bbox[0]
+    draw.text(
+        (width - num_w - 60, height - 180),
+        section_num,
+        fill=(*palette["accent"], 40),
+        font=num_font,
     )
 
-    image_url = response.data[0].url
-    if not image_url:
-        raise ValueError("No se recibió URL de imagen de la API")
+    # Título principal
+    try:
+        title_font = ImageFont.truetype(FONT_PATH, 52)
+    except OSError:
+        title_font = ImageFont.load_default()
 
-    resp = httpx.get(image_url, timeout=60)
-    resp.raise_for_status()
+    lines = _wrap_text(title, title_font, width - 160)
+    total_text_height = len(lines) * 65
+    y_start = (height - total_text_height) // 2 - 20
 
+    for i, line in enumerate(lines):
+        bbox = title_font.getbbox(line)
+        text_w = bbox[2] - bbox[0]
+        x = (width - text_w) // 2
+
+        # Sombra del texto
+        draw.text((x + 3, y_start + i * 65 + 3), line, fill=(0, 0, 0, 180), font=title_font)
+        # Texto principal
+        draw.text((x, y_start + i * 65), line, fill=(255, 255, 255), font=title_font)
+
+    # Barra inferior con indicador de progreso
+    bar_y = height - 8
+    draw.rectangle([0, bar_y, width, height], fill=(0, 0, 0, 100))
+    progress_width = int(width * (section_number + 1) / total_sections)
+    draw.rectangle([0, bar_y, progress_width, height], fill=palette["accent"])
+
+    # Convertir a RGB y guardar
+    img_rgb = img.convert("RGB")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(resp.content)
+    img_rgb.save(str(output_path), quality=95)
 
-    logger.info("Imagen guardada: %s", output_path.name)
+    logger.info("Imagen generada: %s", output_path.name)
     return output_path
 
 
@@ -49,45 +170,24 @@ def generate_section_images(
     work_dir: Path,
 ) -> list[Path]:
     """Genera imágenes para cada sección del video."""
-    client = get_xai_client(settings)
     images_dir = work_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
 
     image_files: list[Path] = []
 
     for i, section in enumerate(sections):
-        visual_prompt = section.get("visual_prompt", "")
-        if not visual_prompt.strip():
-            section_title = section.get("section_title", "education")
-            visual_prompt = f"Educational illustration about: {section_title}"
-
-        enhanced_prompt = (
-            f"{visual_prompt}. "
-            "High quality, professional, educational YouTube video style, "
-            "vibrant colors, clean design, 16:9 aspect ratio"
-        )
-
+        section_title = section.get("section_title", f"Seccion {i + 1}")
         output_path = images_dir / f"section_{i:03d}.png"
 
-        try:
-            generate_image(
-                client=client,
-                model=settings.xai_image_model,
-                prompt=enhanced_prompt,
-                output_path=output_path,
-            )
-            image_files.append(output_path)
-        except Exception as e:
-            logger.warning("Error generando imagen sección %d: %s", i, e)
-            # Crear imagen placeholder
-            _create_placeholder(
-                output_path,
-                section.get("section_title", f"Sección {i + 1}"),
-                settings.video_width,
-                settings.video_height,
-            )
-            image_files.append(output_path)
-
+        generate_section_image(
+            title=section_title,
+            section_number=i,
+            total_sections=len(sections),
+            width=settings.video_width,
+            height=settings.video_height,
+            output_path=output_path,
+        )
+        image_files.append(output_path)
         logger.info("Imagen %d/%d completada", i + 1, len(sections))
 
     return image_files
@@ -95,58 +195,52 @@ def generate_section_images(
 
 def generate_thumbnail(
     settings: Settings,
-    prompt: str,
+    title: str,
     work_dir: Path,
 ) -> Path:
     """Genera la miniatura del video."""
-    client = get_xai_client(settings)
     output_path = work_dir / "thumbnail.png"
+    width, height = 1280, 720
 
-    enhanced_prompt = (
-        f"{prompt}. "
-        "YouTube thumbnail style, bold text overlay area, "
-        "eye-catching, vibrant colors, high contrast, professional"
-    )
+    palette = random.choice(COLOR_PALETTES)
 
-    try:
-        generate_image(
-            client=client,
-            model=settings.xai_image_model,
-            prompt=enhanced_prompt,
-            output_path=output_path,
-            size="1792x1024",
-        )
-    except Exception as e:
-        logger.warning("Error generando miniatura: %s", e)
-        _create_placeholder(output_path, "THUMBNAIL", 1280, 720)
-
-    return output_path
-
-
-def _create_placeholder(
-    output_path: Path,
-    text: str,
-    width: int,
-    height: int,
-) -> None:
-    """Crea una imagen placeholder cuando la generación falla."""
-    from PIL import Image, ImageDraw, ImageFont
-
-    img = Image.new("RGB", (width, height), color=(30, 30, 60))
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 255))
     draw = ImageDraw.Draw(img)
 
+    # Fondo gradiente vibrante
+    _draw_gradient(draw, width, height, palette["bg_start"], palette["bg_end"])
+
+    # Borde llamativo
+    border = 8
+    draw.rectangle(
+        [border, border, width - border, height - border],
+        outline=palette["accent"],
+        width=border,
+    )
+
+    # Título grande
     try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
+        title_font = ImageFont.truetype(FONT_PATH, 64)
     except OSError:
-        font = ImageFont.load_default()
+        title_font = ImageFont.load_default()
 
-    bbox = draw.textbbox((0, 0), text, font=font)
-    text_width = bbox[2] - bbox[0]
-    text_height = bbox[3] - bbox[1]
-    x = (width - text_width) // 2
-    y = (height - text_height) // 2
+    lines = _wrap_text(title, title_font, width - 120)
+    total_text_height = len(lines) * 80
+    y_start = (height - total_text_height) // 2
 
-    draw.text((x, y), text, fill=(255, 255, 255), font=font)
+    for i, line in enumerate(lines):
+        bbox = title_font.getbbox(line)
+        text_w = bbox[2] - bbox[0]
+        x = (width - text_w) // 2
 
+        # Sombra fuerte
+        draw.text((x + 4, y_start + i * 80 + 4), line, fill=(0, 0, 0), font=title_font)
+        # Texto blanco
+        draw.text((x, y_start + i * 80), line, fill=(255, 255, 255), font=title_font)
+
+    img_rgb = img.convert("RGB")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(str(output_path))
+    img_rgb.save(str(output_path), quality=95)
+
+    logger.info("Miniatura generada: %s", output_path.name)
+    return output_path

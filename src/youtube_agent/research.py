@@ -36,11 +36,11 @@ Responde SOLO con el JSON, sin texto adicional.
 """
 
 
-def get_xai_client(settings: Settings) -> OpenAI:
-    """Crea un cliente compatible con xAI/Grok."""
+def get_llm_client(settings: Settings) -> OpenAI:
+    """Crea un cliente OpenAI compatible con Groq."""
     return OpenAI(
-        api_key=settings.xai_api_key,
-        base_url=settings.xai_base_url,
+        api_key=settings.groq_api_key,
+        base_url=settings.groq_base_url,
     )
 
 
@@ -49,8 +49,8 @@ def research_topics(
     count: int = 5,
     niche: str | None = None,
 ) -> list[dict]:
-    """Genera ideas de temas educativos usando Grok."""
-    client = get_xai_client(settings)
+    """Genera ideas de temas educativos usando Groq (Llama 3)."""
+    client = get_llm_client(settings)
 
     context = ""
     if niche:
@@ -59,7 +59,7 @@ def research_topics(
     logger.info("Investigando %d temas educativos trending...", count)
 
     response = client.chat.completions.create(
-        model=settings.xai_model,
+        model=settings.groq_model,
         messages=[
             {
                 "role": "system",
@@ -75,7 +75,7 @@ def research_topics(
 
     content = response.choices[0].message.content or "{}"
 
-    # Extraer JSON del contenido (Grok puede incluir bloques de código)
+    # Extraer JSON del contenido
     if "```json" in content:
         content = content.split("```json")[1].split("```")[0].strip()
     elif "```" in content:
